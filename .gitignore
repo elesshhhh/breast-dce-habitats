@@ -1,0 +1,17 @@
+# dati e risultati (troppo grandi per git, e i dati hanno licenza propria)
+data/
+outputs/
+*.nii
+*.nii.gz
+*.tar.gz
+*.npy
+*.npz
+
+# ambiente Python
+.venv/
+__pycache__/
+*.pyc
+.ipynb_checkpoints/
+
+# macOS
+.DS_Store
