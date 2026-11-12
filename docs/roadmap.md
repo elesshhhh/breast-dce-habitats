@@ -91,6 +91,47 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
 
 **Perché.** Queste mappe sono il "segnale biologico" (vascolarizzazione e permeabilità) su cui si costruisce tutto il resto. Usare misure relative come PE e SER, invece di intensità grezze, rende confrontabili pazienti esaminati con scanner diversi.
 
+**Decisioni prese** (script `src/02_maps.py`, test `tests/test_02_maps.py`, riepilogo in `outputs/maps_report.txt` e `outputs/maps_qc.csv`)
+- **Voxel validi = maschera e PE ≥ 0,70** (definizione FTV del trial, Hylton 2012), per analizzare lo stesso tipo di tessuto in tutte le pazienti. Le tre mappe sono comunque calcolate su tutta la maschera e salvate, così un'analisi di sensibilità "tutta la maschera" non richiede di ricalcolarle.
+- **Rapporti non calcolabili = NaN**, mai 0 o un valore di comodo: PE e variazione tardiva se pre ≤ 0, SER se late − pre ≤ 0. Un voxel con SER NaN resta valido per le altre mappe.
+- **Nessun taglio dei valori estremi in Fase 2**: si decide in Fase 3, insieme al clustering.
+- **Esclusione per problemi di acquisizione: regola oggettiva**, decisa dopo il controllo visivo e senza guardare la pCR. Una paziente è esclusa (colonna `exclude` in `maps_qc.csv`) in due casi:
+  - il rapporto early/pre o late/pre dell'**intensità mediana del tessuto fuori dal tumore** esce da **[0,9; 2,5]**. Il "fondo" è il tessuto a più di 5 voxel dalla maschera, con pre sopra la mediana del volume (per togliere l'aria). Se cambia la luminosità di un'intera fase, il problema è il guadagno o la serie acquisita, non la biologia. Nella coorte questi rapporti hanno l'1°–99° percentile in 0,93–1,97;
+  - meno del **50% dei voxel** della maschera è valido.
+
+  Le mappe delle escluse restano salvate, per l'analisi di sensibilità. Le soglie vengono dalla distribuzione di I-SPY1 e **vanno ricontrollate su I-SPY2**.
+  Il flag informativo (> 10% della maschera con PE < 0,70 o con late ≤ pre) resta solo come segnalazione.
+- **Formato**: un `.npz` compresso per paziente in `outputs/maps/`, ritagliato sul riquadro della maschera, in float32. Contiene `pe`, `ser`, `late`, `valid`, `reason`, la posizione del ritaglio, la shape originale e lo spacing. Per I-SPY1 occupa 47 MB in tutto.
+- **Tolleranza ±5%** sulla variazione tardiva: solo per le frazioni descrittive (wash-out, plateau, crescita continua).
+- **Verifiche sui file**: gli assi sono **(z, y, x)**. L'header NIfTI dichiara uno spacing di 1×1×1 mm, che è falso: lo spacing va preso dal CSV (`slice_thick`, `xy_spacing`).
+
+**Risultati su I-SPY1** (166 pazienti, 4.082.057 voxel nelle maschere)
+- Voxel validi: 3.958.905 (97,0%). Le 123.152 esclusioni per PE < 0,70 riguardano 17 pazienti; 149 pazienti hanno il 100% dei voxel validi. Quindi la verifica "PE minimo = 0,70" fatta in Fase 1 sui pazienti demo non vale per tutta la coorte.
+- SER non calcolabile nello 0,19% dei voxel validi (7.647 voxel, 7 pazienti).
+- Sui voxel validi: PE con mediana 1,80 (p1–p99: 0,74–5,19, massimo 61); SER con mediana 1,01 (p1–p99: 0,46–3,20, massimo 657). Forma della curva: 40,5% wash-out, 20,1% plateau, 39,4% crescita continua.
+- **Problemi di acquisizione** (controllo visivo e rapporto tra le fasi dell'intensità mediana del tessuto fuori dal tumore, che nella coorte ha mediana 1,31 per early/pre e 1,35 per late/pre):
+  - ISPY1_1156: la fase early non mostra enhancement (è uguale alla pre), che compare solo nella late. Restano validi 380 voxel su 83.854;
+  - ISPY1_1148: late più scura in tutta l'immagine (fondo late/pre = 0,49);
+  - ISPY1_1193: late satura (fondo late/pre = 13,4). Non segnalata dalla regola sui soli voxel tumorali;
+  - ISPY1_1042: fondo late/pre = 0,80 (late/early = 0,54);
+  - ISPY1_1069 e ISPY1_1077: early più scura della pre nel fondo (0,67 e 0,85), quindi PE sottostimato;
+  - ISPY1_1228: nessuna anomalia del fondo. I voxel con PE < 0,70 stanno su pelle e vasi inclusi nella maschera, e la soglia li esclude.
+- **Esito della regola**: escluse **6 pazienti** (1042, 1069, 1077, 1148, 1156, 1193), le stesse individuate a vista; ISPY1_1228 resta inclusa. **Coorte I-SPY1 per gli habitat: 160 pazienti**. Nelle incluse:
+  - voxel validi: 99,05%;
+  - SER mediano per paziente tra 0,65 e 1,39 (prima dell'esclusione arrivava a 11,1);
+  - variazione tardiva mediana per paziente tra −0,20 e +0,26;
+  - forma della curva: 40,5% wash-out, 20,3% plateau, 39,2% crescita continua.
+- **Limite del controllo sul fondo**: in circa 15 pazienti le intensità del fondo sono interi piccoli (mediana 4–16), quindi il rapporto procede a scatti (per esempio 4→5 = 1,25). Le due esclusioni ai margini (1069 e 1077) sono confermate anche dalla media (0,74 e 0,82). La media però non è stata scelta perché sensibile agli estremi: segnalerebbe ISPY1_1187, che al controllo visivo è normale (un tumore grande ed eterogeneo).
+- *Punti aperti per la Fase 3*:
+  - (a) in alcune pazienti normali (per esempio ISPY1_1107) si vede un bordo di falso wash-out, probabilmente dovuto a un leggero movimento tra early e late (le fasi non sono registrate tra loro). Da valutare, per esempio erodendo la maschera di un voxel;
+  - (b) **le tre mappe contengono solo due informazioni indipendenti**. Vale infatti variazione tardiva = PE/(1+PE) · (1/SER − 1), perché tre immagini, una volta normalizzate rispetto alla pre, lasciano due gradi di libertà. Da decidere quali variabili dare al clustering (per esempio PE e SER, oppure tutte e tre).
+- **Per la scrittura (Fase 7), cosa sono le mappe**: sono misure **semi-quantitative**, non grandezze fisiche assolute. Sono rapporti di intensità di segnale, adimensionali e dipendenti dal protocollo (tempi delle fasi, sequenza). Non misurano la concentrazione del mezzo di contrasto, né parametri farmacocinetici come Ktrans: con circa 2 minuti tra le fasi non sono stimabili (Hylton 2012). Sono però indicatori indiretti della fisiologia:
+  - **PE** riflette quanto contrasto arriva in fretta, cioè perfusione, densità dei vasi e permeabilità;
+  - **SER** e **variazione tardiva** riflettono cosa succede dopo: il wash-out, tipico dei vasi tumorali immaturi e permeabili, contro l'accumulo continuo, tipico di tessuto più stromale o fibrotico;
+  - essendo rapporti rispetto alla pre, si annulla la scala di intensità propria di ogni esame, e questo li rende confrontabili tra pazienti e scanner.
+
+  Servono come "coordinate" di ogni voxel per il clustering degli habitat (Fase 3).
+
 ---
 
 ## Fase 3: Clustering degli habitat (settimane 2-3)
