@@ -11,7 +11,7 @@
 - **Maschere I-SPY**: derivate dalle maschere di analisi FTV del trial, codificate a bit (1 = VOI manuale, 32 = sopra soglia; 33 = dentro il VOI e sopra soglia), convertite in binario.
   Nel trial la soglia è PE ≥ 70% (nominale, adattata per sito), con soglia sul fondo pre-contrasto e regioni "OMIT" escluse a mano.
   → **La maschera contiene solo tessuto che si illumina**: le zone necrotiche/poco perfuse (PE < 70%) sono già escluse.
-- Colonne CSV utili: `mask_start/mask_end` (slice z con tumore), `sraw/eraw`, `scol/ecol` (bounding box), `tum_vol` (mm³), `menopause`, `HR`, `HER2`, `HR_HER2_STATUS`, `dataset`, `test` (split).
+- Colonne CSV utili: `mask_start/mask_end` (slice z con tumore), `sraw/eraw`, `scol/ecol` (bounding box), `tum_vol` (cm³, verificato sulle maschere demo: n voxel × slice_thick × xy_spacing² / 1000), `menopause`, `HR`, `HER2`, `HR_HER2_STATUS`, `dataset`, `test` (split).
 - Split train/val/test 1.532/268/270, stratificati su pCR (e HER2); tassi di pCR ~29-30% in tutti e tre.
 - ViT: immagini RGB con pre/early/late nei tre canali, slice con tumore; AUC 0,94 solo nel sottogruppo HR+/HER2−.
 
@@ -41,6 +41,6 @@
 ## Conseguenze per il progetto
 
 1. Usare solo misure relative (PE, SER, variazione tardiva): le intensità grezze variano per scanner.
-2. Le maschere I-SPY includono solo voxel con PE ≥ ~70%: gli habitat descriveranno l'eterogeneità **del tessuto che capta**, non la necrosi. Da dichiarare come limite; da verificare sui dati demo (PE minimo nella maschera).
+2. Le maschere I-SPY includono solo voxel con PE ≥ ~70%: gli habitat descriveranno l'eterogeneità **del tessuto che capta**, non la necrosi. Da dichiarare come limite. Verificato in Fase 1 sui 5 pazienti demo I-SPY con fasi DCE: PE minimo nella maschera = 0,700 esatto, nessun voxel sotto 0,70.
 3. In termini di SER: > 1 ≈ wash-out (tipo III), ≈ 1 plateau (tipo II), < 1 crescita continua (tipo I).
 4. Riferimenti di confronto pre-trattamento: AUC modeste (~0,6-0,7) nella letteratura I-SPY.
