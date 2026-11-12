@@ -53,6 +53,23 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
 
 **Perché.** Devi sapere esattamente su quali pazienti lavori e perché escludi Duke (niente maschere voxel e pCR solo per un terzo dei casi). La Tabella 1 serve anche nella tesi.
 
+**Decisioni prese** (script `src/01_cohort.py`, riepilogo in `outputs/cohort_report.txt`)
+- **Criteri di inclusione**: I-SPY1 + I-SPY2 (1.154) → pCR disponibile (1.154) → HER2 disponibile (1.149; esclusi ISPY1_1142, 1144, 1159, 1173, 1192) → fasi early e late distinte (**1.148**; escluso ISPY1_1139, che ha early = late = acquisizione 2, quindi SER e variazione tardiva non sarebbero calcolabili). Coorte finale: 166 I-SPY1, 982 I-SPY2.
+- **Split** (colonna `test`): 0 = train, 1 = test, 2 = validation → 884 / 132 / 132. La mappatura è confermata dai conteggi del paper sul dataset completo (1.532 / 268 / 270, tutti coincidenti).
+- **Età**: mancante per 3 pazienti I-SPY2 (ISPY2-111004, ISPY2-149654, ISPY2-282082, tutte nel train). La colonna `age` resta originale, `age_imputed` usa la mediana del solo training set (49 anni) e `age_was_imputed` segnala i casi. La Tabella 1 riporta l'età senza imputazione.
+- **Menopausa**: solo descrittiva (Tabella 1, con i mancanti). Non entra nei modelli né nel DAG: manca per tutta I-SPY1 e per 38 pazienti I-SPY2. Codifica 0 = pre, 1 = post, verificata con l'età (mediane 43 e 57 anni).
+- **Sottotipo**: 3 categorie come sottotipo principale (HR+/HER2−, HER2+, triplo negativo, come `HR_HER2_STATUS`), più il dettaglio a 4 categorie (HER2+ diviso in HR+/HER2+ e HR−/HER2+).
+- **Tabella 1**: mediana [IQR] per le variabili continue, n (%) per le categoriche, mancanti come riga esplicita, nessun p-value.
+- **Verifiche sui dati**: `tum_vol` è in **cm³**. Sui pazienti demo I-SPY il PE minimo nella maschera è esattamente 0,70, quindi le maschere contengono solo tessuto che capta contrasto.
+- **File I-SPY1** (scaricati il 12/11/2026 in `data/ispy1/BreastDCEDL_ISPY1_min_crop/`, 172 maschere e 516 fasi): tutte le 166 pazienti della coorte hanno la maschera e le 3 fasi indicate dal CSV, con shape coerenti. I-SPY2 non è ancora verificata.
+- **Tumore tagliato dal ritaglio MinCrop**: nuova colonna `mask_frac_in_crop` in `cohort.csv`, pari al volume della maschera nel ritaglio / `tum_vol` (4 decimali); < 1 = flag. In I-SPY1 sono segnalati 6 pazienti: ISPY1_1120 (0,59), 1205 (0,72), 1025 (0,84), 1035 (0,92), tagliati in z (la maschera tocca la prima e l'ultima fetta del ritaglio); ISPY1_1064 (0,999), tagliato in z ma in modo trascurabile; ISPY1_1103 (0,9996), che non tocca i bordi, con una differenza di circa 35 voxel di origine non chiara. **Restano nella coorte**; il volume si prende sempre da `tum_vol`; nelle Fasi 4-5 le analisi principali si ripetono escludendoli (analisi di sensibilità, soglia da decidere).
+- **Bozza del DAG** (`src/dag.py` → `outputs/dag.gml` per DoWhy e `outputs/dag_bozza.png` per il relatore). 7 nodi, 17 frecce:
+  - esposizione: sottotipo (HR, HER2); esito: pCR;
+  - mediatori in sequenza: **volume tumorale → habitat** (sottotipo → volume → habitat → pCR; volume → pCR). Così si può vedere se gli habitat aggiungono qualcosa oltre alla dimensione del tumore;
+  - confondenti da aggiustare: **età** (→ sottotipo, volume, habitat, pCR) e **coorte** I-SPY1/I-SPY2 (→ sottotipo per i criteri di arruolamento, → volume per la dimensione minima richiesta, → habitat per scanner e protocollo, → trattamento, → pCR), più un'analisi di sensibilità sulla sola I-SPY2;
+  - **trattamento come nodo non osservato** (sottotipo → trattamento → pCR; coorte → trattamento). Non è un genitore degli habitat, che sono misurati prima della terapia. Limite: l'effetto "diretto" del sottotipo comprende anche quello della terapia.
+  - *Punti aperti per la Fase 6*: (a) il volume dipende dal sottotipo e influenza sia gli habitat sia la pCR, quindi la mediazione va impostata con mediatori multipli in sequenza (effetto via volume ed effetto via habitat oltre il volume) e non con un singolo mediatore; (b) come codificare l'esposizione, visto che il sottotipo ha 3 categorie (confronti a coppie o HR e HER2 separati).
+
 **Checkpoint con il relatore.** Mostragli la coorte e una prima bozza del DAG, e fagli approvare la riformulazione della parte causale (§3.6 della proposta).
 
 ---
