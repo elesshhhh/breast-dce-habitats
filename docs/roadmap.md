@@ -77,7 +77,7 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
   - mediatori in sequenza: **volume tumorale → habitat** (sottotipo → volume → habitat → pCR; volume → pCR). Così si può vedere se gli habitat aggiungono qualcosa oltre alla dimensione del tumore;
   - confondenti da aggiustare: **età** (→ sottotipo, volume, habitat, pCR) e **coorte** I-SPY1/I-SPY2 (→ sottotipo per i criteri di arruolamento, → volume per la dimensione minima richiesta, → habitat per scanner e protocollo, → trattamento, → pCR), più un'analisi di sensibilità sulla sola I-SPY2;
   - **trattamento come nodo non osservato** (sottotipo → trattamento → pCR; coorte → trattamento). Non è un genitore degli habitat, che sono misurati prima della terapia. Limite: l'effetto "diretto" del sottotipo comprende anche quello della terapia.
-  - *Punti aperti per la Fase 6*: (a) il volume dipende dal sottotipo e influenza sia gli habitat sia la pCR, quindi la mediazione va impostata con mediatori multipli in sequenza (effetto via volume ed effetto via habitat oltre il volume) e non con un singolo mediatore; (b) come codificare l'esposizione, visto che il sottotipo ha 3 categorie (confronti a coppie o HR e HER2 separati).
+  - *Punti aperti per la Fase 6*: (a) il volume dipende dal sottotipo e influenza sia gli habitat sia la pCR, quindi la mediazione va impostata con mediatori multipli in sequenza (effetto via volume ed effetto via habitat oltre il volume) e non con un singolo mediatore; (b) come codificare l'esposizione, visto che il sottotipo ha 3 categorie (confronti a coppie o HR e HER2 separati). (c) il DAG non si può dimostrare con i dati: va giustificato freccia per freccia (biologia o letteratura), comprese le frecce assenti, e se ne valuta la robustezza con i test di confutazione, l'E-value e grafi alternativi (per esempio senza volume → habitat). Mancano ancora la motivazione scritta delle frecce dell'età (età → sottotipo, volume, habitat, pCR) e di sottotipo → volume, e quella delle frecce assenti (per esempio età → trattamento). Il grafo ha 17 frecce su 7 nodi, quindi implica poche indipendenze verificabili sui dati: da dire nella tesi.
 
 **Checkpoint con il relatore.** Mostragli la coorte e una prima bozza del DAG, e fagli approvare la riformulazione della parte causale (§3.6 della proposta).
 
@@ -236,6 +236,71 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
 
 **Perché.** Queste sono le misure quantitative previste dalla proposta (§3.4). Pochi indicatori interpretabili sono più adatti all'analisi causale di centinaia di feature radiomiche.
 
+**Decisioni prese** (script `src/04_features.py`, test `tests/test_04_features.py`, riepilogo in `outputs/features_report.txt` ed elenco delle feature per i modelli in `outputs/features_selection.csv`)
+- **Pazienti e dati**: le 160 pazienti I-SPY1 con `exclude == False` (95 train, 32 val, 33 test), habitat da `outputs/habitats_k3/` (k = 3). Da `cohort.csv` si leggono solo `pid`, `split`, `tum_vol` e `mask_frac_in_crop`: la pCR non viene letta. Le frazioni coincidono con quelle di `habitat_fractions_k3.csv` (controllo).
+- **Feature per paziente** (`outputs/features.csv`, una riga per paziente):
+  - **frazioni** `frac_h1`, `frac_h2`, `frac_h3`;
+  - **entropia** di Shannon delle frazioni divisa per log k (`entropy`): 0 = un solo habitat, 1 = habitat in parti uguali. Normalizzata per confrontare k = 3 e k = 2;
+  - per ogni habitat, **numero di regioni connesse** di almeno 50 mm³ (`nreg_h*`, solo descrittivo) e **frammentazione** = 1 − frazione dell'habitat nella sua regione più grande (`frag_h*`, per i modelli): 0 = l'habitat è un blocco unico, vicino a 1 = è sparso;
+  - **adiacenza** (`adj`, per i modelli) = quota della superficie di contatto tra voxel validi vicini che separa due habitat diversi. Le quote per coppia (`adj_h1h2`, `adj_h1h3`, `adj_h2h3`, che sommano ad `adj`) restano solo descrittive: sono la versione semplificata della matrice di adiacenza di Wu 2018;
+  - **`tum_vol`** dal CSV (cm³); `vol_valid_cm3` (voxel validi × volume del voxel) come controllo; **`crop_flag`** (vedi sotto).
+- **Connettività a 26 vicini** (facce, spigoli e angoli). Con fette di 2-4 mm e pixel di 0,4-1,2 mm (rapporto mediano 2,9), il vicino in diagonale sulla fetta accanto è lontano quasi quanto quello dritto sopra (2,6 contro 2,5 mm con 0,78 × 2,5 mm). La connettività a 6 vicini separerebbe invece voxel in diagonale nel piano, distanti 1,1 mm, e trova in media 1.561 regioni per tumore contro 594.
+- **Regioni minuscole escluse dal conteggio: soglia 50 mm³** (circa un cubo di 3,7 mm di lato). Il 90% delle regioni ha meno di 10 voxel: è il "puntinato" dell'assegnazione voxel per voxel. Senza soglia un tumore ha in mediana 275 regioni, con la soglia 9 (p5–p95: 3–67). La soglia è in mm³ e non in voxel perché il volume del voxel va da 0,4 a 3,3 mm³ (mediana 1,24). La frammentazione invece usa tutti i voxel dell'habitat. Questi numeri, come quelli dei punti successivi, sono stati guardati su tutte le 160 pazienti, senza pCR, prima di scegliere. Sul solo training si ottiene lo stesso quadro (87% di regioni sotto i 10 voxel, mediana di 9 regioni ≥ 50 mm³), quindi le scelte non dipendono da val e test.
+- **Normalizzazione per la dimensione del tumore.** Il numero di regioni cresce con il volume (Spearman 0,84 senza soglia; 0,63–0,71 per habitat con la soglia), mentre il numero per cm³ corregge troppo (−0,58). La frammentazione non dipende dal volume (|ρ| ≤ 0,16 con `tum_vol`), e lo stesso vale per l'adiacenza (0,11).
+- **Contatti pesati con l'area della faccia** in mm² (dy·dx tra due fette, dz·dx e dz·dy nel piano). Così l'adiacenza è una vera superficie di contatto e non dipende dallo spessore delle fette, che va da 1,5 a 4 mm.
+- **Habitat assente o minuscolo**: la frammentazione è NaN se l'habitat manca o se in tutto è più piccolo di 50 mm³, la stessa soglia delle regioni. Un habitat di pochi voxel non ha una forma da misurare: 4 voxel sparsi darebbero 0,75, 4 voxel attaccati 0. Nei 19 casi con H3 sotto 50 mm³ il valore andava da 0 a 0,86, cioè era rumore. La regola è stata aggiunta nella revisione di fine fase. Valori mancanti:
+  - H3 in **19 pazienti** (12 nel training); in 2 di queste H3 è del tutto assente (ISPY1_1189 del train e ISPY1_1216 del val);
+  - H2 in 2 pazienti, H1 in nessuna.
+
+  L'imputazione si decide in Fase 5, stimata sul solo training.
+- **Pazienti escluse in Fase 2**: le stesse feature (k = 3, maschera intera) sono calcolate anche per le 6 escluse per problemi di acquisizione, in un file a parte (`outputs/features_qc_excluded.csv`), solo per un'eventuale analisi di sensibilità in Fase 5. `features.csv` resta di 160 righe. Come atteso, 4 di loro hanno tutto il tumore in un solo habitat (entropia 0): è l'effetto dell'artefatto di acquisizione.
+- **Frazioni che sommano a 1**: tutte e tre restano nel file; **nei modelli si toglie H1**, che diventa il riferimento, e si usano H2 e H3. Il confine instabile del clustering è quello tra H1 e H2: la GMM assegna il 31% di H2 alla componente di H1. Per questo togliere H2 non eliminerebbe l'instabilità. H1 è inoltre l'habitat più grande (il 40% del campione). Niente log-rapporti compositivi: H3 vale 0 in 2 pazienti e meno dell'1% in 21, quindi il logaritmo esploderebbe.
+- **Filtro per correlazione**: Spearman sulle sole 95 pazienti del training, soglia |ρ| > 0,9. In una coppia sopra soglia si scarta la feature con priorità più bassa, secondo un ordine fissato prima: `tum_vol` (mai scartato, è un nodo del DAG) > frazioni > entropia > adiacenza > frammentazione; dentro ogni gruppo vale l'ordine degli habitat. **Con k = 3 non si scarta nulla**: la correlazione più alta nel training è 0,74 (entropia e adiacenza).
+- **Feature candidate per i modelli (k = 3, 8)**: `tum_vol`, `frac_h2`, `frac_h3`, `entropy`, `adj`, `frag_h1`, `frag_h2`, `frag_h3`.
+- **Analisi di sensibilità**:
+  - **maschera erosa** (`outputs/features_eroded2d.csv`): stesse feature calcolate solo sui voxel di `eroded2d`, con lo stesso elenco dell'analisi principale (nessun nuovo filtro), per un confronto diretto;
+  - **k = 2** (`outputs/features_k2.csv`): candidate `tum_vol`, `frac_h2`, `entropy`, `adj`, `frag_h1`, `frag_h2`, con il filtro ricalcolato sul training di k = 2 (nessuna scartata). Con una sola coppia di habitat le quote per coppia coincidono con `adj` e non sono salvate;
+  - **tumori tagliati dal ritaglio**: `crop_flag` = `mask_frac_in_crop` < **0,95**. Segnala 4 pazienti, tutte del training: ISPY1_1120 (0,59), 1205 (0,72), 1025 (0,84) e 1035 (0,92). Restano 1064 (0,999) e 1103 (0,9996), a cui manca una parte trascurabile. L'esclusione si applica in Fase 5. Questo chiude la "soglia da decidere" della Fase 1.
+- **Alternative considerate e scartate** (per la discussione):
+  - *connettività a 6 vicini*: vedi sopra;
+  - *nessuna soglia sulle regioni*, oppure *10 mm³* (mediana 36 regioni): il conteggio misurerebbe soprattutto il rumore;
+  - *numero di regioni grezzo*, lasciando al volume nel modello il compito di correggerlo: è in buona parte una copia del volume. *Numero di regioni per cm³*: corregge troppo;
+  - *tre adiacenze per coppia nei modelli*: dipendono molto dalle frazioni (`adj_h1h2` ha ρ = −0,83 con `frac_h3`) e insieme all'indice globale sarebbero ridondanti, perché lo sommano;
+  - *togliere H2 invece di H1* (H2 è l'habitat meno stabile, diviso in due dalla GMM) e *togliere H3* (si perderebbe l'habitat più interessante dal punto di vista biologico);
+  - *correlazione di Pearson*: sensibile agli estremi e limitata alle relazioni lineari;
+  - *frammentazione = 0 per un habitat assente*: 0 significherebbe "blocco unico", che non è vero;
+  - *frammentazione calcolata anche per gli habitat sotto i 50 mm³*: nessun valore mancante in più, ma in 19 pazienti `frag_h3` sarebbe un numero casuale;
+  - *feature delle 6 escluse dentro `features.csv`*, con una colonna `exclude`: ogni analisi dovrebbe ricordarsi di filtrarle;
+  - *entropia grezza in bit* e *ogni faccia di contatto con peso 1*;
+  - *filtro ricalcolato anche per la maschera erosa*: le feature potrebbero cambiare rispetto all'analisi principale e il confronto diventerebbe indiretto;
+  - *soglia "< 1" per il ritaglio*: escluderebbe anche 1064 e 1103.
+
+**Risultati su I-SPY1** (160 pazienti; mediana [IQR] sul training, poi mediana su val e test)
+
+| Feature | Train | Val | Test |
+|---|---|---|---|
+| `entropy` | 0,73 [0,57–0,87] | 0,70 | 0,66 |
+| `adj` | 0,23 [0,16–0,30] | 0,21 | 0,22 |
+| `frag_h1` | 0,20 [0,06–0,70] | 0,56 | 0,37 |
+| `frag_h2` | 0,39 [0,15–0,64] | 0,28 | 0,38 |
+| `frag_h3` | 0,15 [0,03–0,62] | 0,12 | 0,35 |
+| `nreg_h1` / `h2` / `h3` | 3 / 4 / 2 | 3 / 4,5 / 3 | 3 / 4 / 2 |
+
+- Le frammentazioni hanno distribuzioni larghe e mediane diverse tra gli split (per esempio `frag_h1`: train 0,20, val 0,56), con IQR che si sovrappongono molto: sono split piccoli (32-33 pazienti). Da tenere presente in Fase 5.
+- Correlazioni nel training sotto la soglia, ma da ricordare nell'interpretazione: `frac_h3` con `frag_h1` +0,67 e con `frag_h3` −0,79 (quando un habitat è piccolo è anche sparso), `frac_h2` con `frag_h2` −0,71, `entropy` con `adj` +0,74.
+- **Maschera erosa** (restano il 61,8% dei voxel; minimo 109 voxel per paziente). Spearman tra feature intere ed erose: `frac_h2` 0,97, `frac_h3` 0,99, `entropy` 0,93, `adj` 0,91, `frag_h1` 0,94, `frag_h3` 0,96, **`frag_h2` 0,73**. H2 sta soprattutto sul bordo (Fase 3): togliendo il bordo si spezza, e la sua frammentazione mediana passa da 0,37 a 0,68. Con l'erosione la frammentazione è NaN per H1 in 4 pazienti, per H2 in 8 e per H3 in 24.
+- **k = 2**: entropia mediana 0,77 e adiacenza 0,15 nel training. Con k = 2 l'entropia è una funzione della sola `frac_h2`, ma non monotona (cresce fino a 0,5 e poi scende), quindi Spearman non la rileva (ρ = 0,36). Nel training ha ρ = 0,82 con l'adiacenza.
+- *Punti aperti per la Fase 5*:
+  - **dove mettere il volume: deciso il 13/11/2026, prima di guardare la pCR (da rivedere con il relatore)**. Il modello M0 "solo clinico" della proposta è HR, HER2 ed età, senza volume. Nel DAG però il volume è un passaggio separato dagli habitat (sottotipo → volume → habitat → pCR), e da solo predice già la pCR (AUC 0,70 in Hylton 2012). Se il volume sta solo in M1, il guadagno M1 − M0 mescola l'effetto del volume con quello dell'eterogeneità. Si dichiarano quindi due versioni:
+    - **principale**: M0 = sottotipo + età + volume; M1 = M0 + feature degli habitat. Così M1 − M0 misura solo l'eterogeneità, in modo coerente con il DAG;
+    - **secondaria**: M0 come nella proposta (HR, HER2, età) e M1 = M0 + volume + feature degli habitat.
+
+    Le due versioni si riportano entrambe, qualunque sia il risultato;
+  - imputare la frammentazione mancante (H3 in 19 pazienti, H2 in 2 nell'analisi principale), stimandola sul training;
+  - trasformare `tum_vol` (per esempio con il logaritmo), che è molto asimmetrico;
+  - nell'analisi k = 2 valutare se togliere l'entropia, ridondante con `frac_h2`;
+  - con I-SPY2 ricontrollare le distribuzioni e il filtro di correlazione.
+
 ---
 
 ## Fase 5: Modelli predittivi (settimana 4)
@@ -244,6 +309,8 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
 - **M0**, solo clinico: HR, HER2, età;
 - **M1**, clinico più habitat;
 - **M2**, solo habitat.
+
+Il volume entra in M0 nell'analisi principale. La versione con M0 = HR, HER2, età è l'analisi secondaria (decisione presa in Fase 4, vedi i suoi punti aperti).
 
 **Come**
 - Usa la regressione logistica come modello principale, perché è interpretabile; aggiungi una random forest come controllo.

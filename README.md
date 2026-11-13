@@ -22,7 +22,7 @@ dce-habitat-causal/
 ├── outputs/         # mappe, feature, figure, report (NON versionati)
 ├── scripts/         # script di shell (download dati)
 ├── src/             # codice Python della pipeline
-├── tests/           # test su dati sintetici (python tests/test_02_maps.py, tests/test_03_habitats.py)
+├── tests/           # test su dati sintetici (python tests/test_02_maps.py, tests/test_03_habitats.py, tests/test_04_features.py)
 ├── docs/            # note di lavoro
 ├── requirements.txt
 └── README.md
