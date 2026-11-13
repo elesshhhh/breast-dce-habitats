@@ -145,6 +145,63 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
 
 **Perché.** Con un clustering diverso per ogni paziente, "habitat 1" significherebbe una cosa diversa da paziente a paziente e i confronti tra pazienti non avrebbero senso. Usare solo il training set evita che informazioni del test set entrino nel modello (data leakage), cosa che renderebbe i risultati falsamente ottimistici.
 
+**Decisioni prese** (script `src/03_habitats.py`, test `tests/test_03_habitats.py`; passo 1 in `outputs/habitat_k_selection.txt/.csv`, passo 2 in `outputs/habitats_report_k3.txt` e `outputs/habitats_report_k2.txt`)
+- **Pazienti e voxel**: le 160 pazienti I-SPY1 con `exclude == False` (95 train, 32 val, 33 test), solo i voxel `valid` della Fase 2. Il modello si adatta **solo sul training**; val e test (e, solo per la sensibilità, le 6 escluse) ricevono gli habitat dal modello congelato. La pCR non viene mai letta.
+- **Variabili: log(PE) e variazione tardiva.** Il SER è scartato perché, sul training, ha una correlazione di Spearman di −0,996 con la variazione tardiva (stessa informazione), ma esplode quando late ≈ pre (fino a 401, asimmetria 107) ed è NaN nello 0,19% dei voxel validi, cioè proprio in quelli con il wash-out più forte (late ≤ pre, variazione tardiva mediana −0,78). La variazione tardiva è sempre definita sui voxel validi e resta tra −1 e 2. Così il problema dei SER NaN non si pone: quei voxel restano nel clustering.
+- **Estremi e scala**: logaritmo di PE (asimmetria da 1,6 a 0,3), poi taglio di ogni variabile ai **percentili 0,5 e 99,5** e **standardizzazione z** (media e DS). Tutti i parametri sono stimati sul campione del training e salvati nel modello: PE tagliato in [0,71; 5,28], variazione tardiva in [−0,47; 0,61].
+- **Nessuna erosione della maschera nell'analisi principale.** Un'erosione di 1 voxel nel piano toglie il 38% dei voxel (44 pazienti su 160 ne perdono più della metà), una 3D il 58%, per via delle fette spesse 2-4 mm. Inoltre il bordo ha **meno** wash-out dell'interno (mediana per paziente 24% contro 44%; il bordo supera l'interno solo nel 5% delle pazienti), quindi il falso wash-out da movimento non è sistematico. La maschera erosa nel piano è salvata (`eroded2d`) per l'**analisi di sensibilità in Fase 4**. Con k = 3 l'erosione sposta le frazioni mediane di H2 −0,07 e H3 +0,06: il bordo è più spesso "crescita continua".
+- **Campionamento**: **2.000 voxel per paziente** (tutti se ne ha meno; la più piccola ne ha 361), con seme fisso 0: 182.846 voxel. Ogni tumore pesa quasi allo stesso modo; con un campione globale la paziente più grande farebbe il 10% e le 5 più grandi il 29%.
+- **Algoritmo**: **K-means** (n_init = 10) come principale, **GMM** a covarianza piena come confronto. Ogni voxel va al centroide più vicino.
+- **Scelta di k (k = 2…6, solo training)**: si sono calcolati silhouette (3 sotto-campioni da 10.000 voxel), inerzia, stabilità (ARI tra K-means adattati su metà disgiunte delle pazienti, 10 ripetizioni) e BIC della GMM. La regola indicativa fissata prima era "il k più piccolo con silhouette alta e ARI ≥ 0,8".
+
+  | k | silhouette | ARI medio (min) | BIC GMM | ARI K-means/GMM |
+  |---|---|---|---|---|
+  | 2 | 0,40 | 0,84 (0,66) | 997.839 | 0,85 |
+  | 3 | 0,35 | 0,76 (0,60) | 986.487 | 0,72 |
+  | 4 | 0,35 | 0,45 (0,35) | 980.866 | 0,38 |
+  | 5 | 0,34 | 0,67 (0,45) | 981.275 | 0,71 |
+  | 6 | 0,33 | 0,67 (0,55) | 981.146 | 0,79 |
+
+  La silhouette scende in modo regolare e il gomito non è netto: lo spazio (PE, variazione tardiva) è **un continuo, senza gruppi naturali**, e gli habitat sono una suddivisione di questo continuo. Per questo pesano di più stabilità e interpretabilità. **Scelto k = 3 come analisi principale e k = 2 come analisi di sensibilità.** Ci si scosta dalla regola indicativa, che porterebbe a k = 2, per tre motivi (da dichiarare nella tesi):
+  - k = 3 ritrova le tre forme di curva di Kuhl;
+  - la sua stabilità (0,76) è appena sotto la soglia e molto sopra k ≥ 4;
+  - con k = 2 ogni tumore sarebbe descritto da un solo numero, e l'entropia della Fase 4 ne sarebbe una funzione.
+- **Ordine e nomi degli habitat**: numerati per PE crescente del centroide (a parità, per variazione tardiva). Il nome è dato da una regola:
+  - perfusione "alta" o "bassa" rispetto al PE mediano del campione del training (1,52);
+  - forma della curva dalla variazione tardiva mediana dell'habitat, con tolleranza ±5% (Kuhl).
+
+  Il valore 0 nelle mappe indica i voxel non validi. I nomi prodotti dalla regola per k = 3 e k = 2 sono stati controllati e confermati.
+- **Formato**: per ogni k ci sono:
+  - `outputs/habitats_k<k>/<pid>.npz` (`habitat` uint8, `eroded2d`, stesso ritaglio e `spacing_zyx` della Fase 2);
+  - `outputs/habitat_model_k<k>.npz` (parametri della trasformazione, centroidi, nomi, pazienti del training);
+  - `outputs/habitat_fractions_k<k>.csv` (frazioni per paziente, intere ed erose);
+  - le figure in `outputs/figures/habitats/k<k>/`.
+
+**Risultati su I-SPY1, k = 3** (unità originali, campione del training)
+
+| Habitat | Nome | Quota del campione | PE mediano [IQR] | Var. tardiva mediana [IQR] |
+|---|---|---|---|---|
+| H1 | perfusione bassa, plateau | 40% | 1,21 [1,00–1,46] | −0,01 [−0,08; 0,05] |
+| H2 | perfusione bassa, crescita continua | 25% | 1,21 [0,95–1,62] | +0,21 [0,15; 0,29] |
+| H3 | perfusione alta, wash-out | 35% | 2,46 [2,06–3,05] | −0,12 [−0,20; −0,03] |
+
+- **Confronto con la GMM** (ARI 0,72): H1 e H3 coincidono al 97%. H2 viene diviso dalla GMM (64% / 31%), quindi il confine instabile è quello tra le due classi a bassa perfusione.
+- **Frazioni per paziente** (160 incluse, mediana per split): sono simili tra train, val e test.
+
+  | Habitat | Train | Val | Test |
+  |---|---|---|---|
+  | H1 | 0,33 | 0,21 | 0,24 |
+  | H2 | 0,22 | 0,22 | 0,25 |
+  | H3 | 0,27 | 0,29 | 0,26 |
+
+  Gli habitat con almeno il 5% del tumore sono 3 in 94 pazienti, 2 in 65 e 1 in 1. H3 supera il 5% in 114 pazienti su 160: un quarto dei tumori ha poco o nessun tessuto "alta perfusione con wash-out".
+- **Sensibilità k = 2**: H1 "perfusione bassa, crescita continua" (56%, PE 1,15, variazione tardiva +0,09) e H2 "perfusione alta, wash-out" (44%, PE 2,26, variazione tardiva −0,11). L'ARI con la GMM è 0,85.
+- **Controllo visivo** su 6 pazienti di dimensioni diverse, compresa ISPY1_1107: gli habitat seguono le mappe di PE e variazione tardiva. Il bordo di falso wash-out di ISPY1_1107 cade in H3, che comunque copre la maggior parte di quel tumore.
+- *Punti aperti per la Fase 4*:
+  - ripetere le feature con la maschera erosa (`eroded2d`) e con k = 2 come sensibilità;
+  - le frazioni sommano a 1, quindi una delle tre è ridondante nei modelli;
+  - con I-SPY2 decidere se riadattare il modello sul training I-SPY1 + I-SPY2 e ricontrollare i parametri della trasformazione e la stabilità di k.
+
 ---
 
 ## Fase 4: Estrazione dei biomarcatori (settimana 3)
