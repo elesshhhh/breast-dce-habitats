@@ -55,5 +55,11 @@ Ogni scelta di metodo presa finora che ha bisogno di una fonte nella tesi. I rif
 | 3 | scikit-learn | Pedregosa et al. 2011, *JMLR* |
 | 3-5 | Adattare tutto solo sul training (data leakage) | Kapoor e Narayanan 2023, *Patterns* |
 | 6 | Preprint che tratta il sottotipo come confondente | Riferimento esatto da recuperare (vedi "Per il DAG") |
+| 6 | Una fonte per ogni freccia del DAG (`src/dag.py`), soprattutto età → sottotipo (tripli negativi più frequenti nelle giovani), età → volume, età → habitat, età → pCR, sottotipo → volume, coorte → habitat (scanner e protocollo) | **Fonti da trovare.** Già indicate: sottotipo → habitat (studio di radiomica per il sottotipo, in "Radiomica contro sottotipo"); volume → pCR (Hylton et al. 2012, già letto) |
+| 6 | E-value per la sensibilità al confondimento non misurato | VanderWeele e Ding 2017, *Ann Intern Med* |
 | 6 | DoWhy | Sharma e Kiciman 2020 (arXiv) |
+| 4 | Entropia di Shannon delle frazioni degli habitat | Shannon 1948, *Bell System Technical Journal* |
+| 4 | Regioni connesse a 26 vicini (convenzione nella radiomica) | van Griethuysen et al. 2017, *Cancer Research* (pyradiomics; verificare che la connettività predefinita delle zone sia a 26 vicini) |
+| 4 | Adiacenza tra habitat (matrice di interazione spaziale) | Wu et al. 2018 (già in elenco) |
+| 4 | Filtro delle feature correlate con \|r\| > 0,9 | **Fonte da trovare** (soglia comune negli studi di radiomica) |
 | — | Esclusione di pazienti per problemi di acquisizione (rapporto del fondo) | Nessuna fonte specifica: è una regola nostra, motivata dai dati (roadmap, Fase 2) |
