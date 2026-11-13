@@ -1,6 +1,6 @@
 # Roadmap di sviluppo – dce-habitat-causal
 
-Pianificazione ipotizzata: **6 settimane di lavoro più 1 settimana di margine**. Il piano segue la proposta aggiornata: habitat, valore incrementale oltre il sottotipo e mediazione causale.
+Il piano segue la proposta aggiornata: habitat, valore incrementale oltre il sottotipo e mediazione causale.
 
 ## Panoramica
 
@@ -13,9 +13,6 @@ Pianificazione ipotizzata: **6 settimane di lavoro più 1 settimana di margine**
 | 4. Biomarcatori | Settimana 3 | Tabella di feature, una riga per paziente |
 | 5. Modelli predittivi | Settimana 4 | AUC con intervalli di confidenza e confronti |
 | 6. Analisi causale | Settimane 4-5 | DAG, stime di effetto e mediazione, test di robustezza |
-| 7. Scrittura e revisione | Settimane 5-6 (+ margine) | Tesi completa |
-
-La scrittura non va lasciata alla fine: il capitolo sui metodi si scrive durante le fasi 2-6, mentre lavori.
 
 ---
 
@@ -82,7 +79,7 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
   - **trattamento come nodo non osservato** (sottotipo → trattamento → pCR; coorte → trattamento). Non è un genitore degli habitat, che sono misurati prima della terapia. Limite: l'effetto "diretto" del sottotipo comprende anche quello della terapia.
   - *Punti aperti per la Fase 6*: (a) il volume dipende dal sottotipo e influenza sia gli habitat sia la pCR, quindi la mediazione va impostata con mediatori multipli in sequenza (effetto via volume ed effetto via habitat oltre il volume) e non con un singolo mediatore; (b) come codificare l'esposizione, visto che il sottotipo ha 3 categorie (confronti a coppie o HR e HER2 separati).
 
-**Checkpoint con il relatore.** Mostragli la coorte e una prima bozza del DAG, e fagli approvare la riformulazione della parte causale (§3.6 della proposta). *Non fatto, per scelta dell'utente (13/11/2026).*
+**Checkpoint con il relatore.** Mostragli la coorte e una prima bozza del DAG, e fagli approvare la riformulazione della parte causale (§3.6 della proposta).
 
 ---
 
@@ -137,7 +134,7 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
 - *Punti aperti per la Fase 3*:
   - (a) in alcune pazienti normali (per esempio ISPY1_1107) si vede un bordo di falso wash-out, probabilmente dovuto a un leggero movimento tra early e late (le fasi non sono registrate tra loro). Da valutare, per esempio erodendo la maschera di un voxel;
   - (b) **le tre mappe contengono solo due informazioni indipendenti**. Vale infatti variazione tardiva = PE/(1+PE) · (1/SER − 1), perché tre immagini, una volta normalizzate rispetto alla pre, lasciano due gradi di libertà. Da decidere quali variabili dare al clustering (per esempio PE e SER, oppure tutte e tre).
-- **Per la scrittura (Fase 7), cosa sono le mappe**: sono misure **semi-quantitative**, non grandezze fisiche assolute. Sono rapporti di intensità di segnale, adimensionali e dipendenti dal protocollo (tempi delle fasi, sequenza). Non misurano la concentrazione del mezzo di contrasto, né parametri farmacocinetici come Ktrans: con circa 2 minuti tra le fasi non sono stimabili (Hylton 2012). Sono però indicatori indiretti della fisiologia:
+- **Cosa sono le mappe**: sono misure **semi-quantitative**, non grandezze fisiche assolute. Sono rapporti di intensità di segnale, adimensionali e dipendenti dal protocollo (tempi delle fasi, sequenza). Non misurano la concentrazione del mezzo di contrasto, né parametri farmacocinetici come Ktrans: con circa 2 minuti tra le fasi non sono stimabili (Hylton 2012). Sono però indicatori indiretti della fisiologia:
   - **PE** riflette quanto contrasto arriva in fretta, cioè perfusione, densità dei vasi e permeabilità;
   - **SER** e **variazione tardiva** riflettono cosa succede dopo: il wash-out, tipico dei vasi tumorali immaturi e permeabili, contro l'accumulo continuo, tipico di tessuto più stromale o fibrotico;
   - essendo rapporti rispetto alla pre, si annulla la scala di intensità propria di ogni esame, e questo li rende confrontabili tra pazienti e scanner.
@@ -275,26 +272,6 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
 - Lavora su tutta la coorte I-SPY. Qui non stai predicendo, stai stimando effetti, quindi non serve lo split.
 
 **Perché.** È la parte "Causal AI" della proposta, riformulata in modo difendibile. Mette per iscritto le ipotesi (il DAG) e verifica quanto i risultati reggono se quelle ipotesi sono sbagliate. Nella mia ricerca è anche l'aspetto più nuovo del tuo lavoro.
-
----
-
-## Fase 7: Scrittura e revisione (settimane 5-6, più il margine)
-
-**Struttura consigliata**
-1. Introduzione: contesto clinico e obiettivo.
-2. Background: tumore al seno, NAC e pCR, DCE-MRI, radiomica ed eterogeneità, inferenza causale.
-3. Stato dell'arte: i lavori di confronto individuati nella ricerca bibliografica.
-4. Dati e metodi: Fasi 1-6.
-5. Risultati.
-6. Discussione e limiti: solo 3 fasi temporali, niente Duke, ipotesi del DAG.
-7. Conclusioni e sviluppi futuri: Causal Forest sui bracci di I-SPY2.
-
-**Come**
-- Scrivi i metodi via via che lavori: alla fine di ogni fase, una o due pagine.
-- Nelle ultime due settimane scrivi risultati, discussione e introduzione, in quest'ordine.
-- Lascia la settimana di margine per le correzioni del relatore.
-
-**Perché.** L'introduzione si scrive meglio quando conosci già i risultati. Il margine assorbe i ritardi tipici: download lenti, bug nel preprocessing, richieste di modifica.
 
 ---
 
