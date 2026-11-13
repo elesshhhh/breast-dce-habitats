@@ -38,6 +38,12 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
 
 **Perché.** I problemi tecnici (formati, spazio, librerie) vanno risolti prima di iniziare. Le tre letture ti danno il vocabolario minimo per capire cosa stai calcolando.
 
+**Decisioni prese** (script `scripts/download_data.sh` e `src/00_check_setup.py`, riepilogo in `outputs/check_setup_report.txt`)
+- **Dataset**: BreastDCEDL, versione **MinCrop**, Zenodo record **18114231**, licenza CC BY-NC 4.0 (Fridman et al. 2026). Metadati in `BreastDCEDL_metadata_min_crop.csv`: 2.070 righe e 29 colonne (I-SPY1 172, I-SPY2 982, Duke 916), conteggi coincidenti con il paper.
+- **Scaricamento**: metadati e demo l'11/11/2026, I-SPY1 il 12/11/2026, con estrazione in streaming (l'archivio non viene salvato). I-SPY2 non è ancora scaricata.
+- **Software** (da citare nei metodi): Python 3.14.0, numpy 2.5.4, scipy 1.18.1, pandas 3.1.1, nibabel 5.5.0, scikit-learn 1.9.1, statsmodels 0.15.0, dowhy 0.8, matplotlib 3.11.2. `requirements.txt` non fissa le versioni, quindi vanno ricontrollate se l'ambiente viene ricreato.
+- **Riproducibilità**: tutte le estrazioni casuali usano il seme fisso 0 (Fase 3). Gli output in `outputs/` non sono versionati, ma si rigenerano lanciando gli script in ordine.
+
 ---
 
 ## Fase 1: Esplorazione dei dati e definizione della coorte (settimana 1)
@@ -59,7 +65,13 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
 - **Età**: mancante per 3 pazienti I-SPY2 (ISPY2-111004, ISPY2-149654, ISPY2-282082, tutte nel train). La colonna `age` resta originale, `age_imputed` usa la mediana del solo training set (49 anni) e `age_was_imputed` segnala i casi. La Tabella 1 riporta l'età senza imputazione.
 - **Menopausa**: solo descrittiva (Tabella 1, con i mancanti). Non entra nei modelli né nel DAG: manca per tutta I-SPY1 e per 38 pazienti I-SPY2. Codifica 0 = pre, 1 = post, verificata con l'età (mediane 43 e 57 anni).
 - **Sottotipo**: 3 categorie come sottotipo principale (HR+/HER2−, HER2+, triplo negativo, come `HR_HER2_STATUS`), più il dettaglio a 4 categorie (HER2+ diviso in HR+/HER2+ e HR−/HER2+).
-- **Tabella 1**: mediana [IQR] per le variabili continue, n (%) per le categoriche, mancanti come riga esplicita, nessun p-value.
+- **Tabella 1**: mediana [IQR] per le variabili continue, n (%) per le categoriche, mancanti come riga esplicita, nessun p-value. File completi in `outputs/table1.md` e `outputs/pcr_by_subtype.csv`. Numeri principali (totale, poi I-SPY1 / I-SPY2):
+  - età 49,0 [41,0–56,0] anni (48,7 / 49,0);
+  - HR+ 54,9%, HER2+ 25,8% (32,5% / 24,6%);
+  - sottotipo HR+/HER2− 39,2%, HER2+ 25,8%, triplo negativo 35,0% (in I-SPY1: 41,6%, 32,5%, 25,9%);
+  - volume tumorale 14,7 [6,6–31,3] cm³;
+  - **pCR 31,5%** (27,7% / 32,2%; train 31,2%, val 32,6%, test 32,6%);
+  - **pCR per sottotipo** (totale): HR+/HER2− 15,8%, HER2+ 45,9%, triplo negativo 38,6%. Nel dettaglio a 4 categorie: HR+/HER2+ 35,6%, HR−/HER2+ 62,1%. In I-SPY1: HR+/HER2− 10,1%, HER2+ 46,3%, triplo negativo 32,6%.
 - **Verifiche sui dati**: `tum_vol` è in **cm³**. Sui pazienti demo I-SPY il PE minimo nella maschera è esattamente 0,70, quindi le maschere contengono solo tessuto che capta contrasto.
 - **File I-SPY1** (scaricati il 12/11/2026 in `data/ispy1/BreastDCEDL_ISPY1_min_crop/`, 172 maschere e 516 fasi): tutte le 166 pazienti della coorte hanno la maschera e le 3 fasi indicate dal CSV, con shape coerenti. I-SPY2 non è ancora verificata.
 - **Tumore tagliato dal ritaglio MinCrop**: nuova colonna `mask_frac_in_crop` in `cohort.csv`, pari al volume della maschera nel ritaglio / `tum_vol` (4 decimali); < 1 = flag. In I-SPY1 sono segnalati 6 pazienti: ISPY1_1120 (0,59), 1205 (0,72), 1025 (0,84), 1035 (0,92), tagliati in z (la maschera tocca la prima e l'ultima fetta del ritaglio); ISPY1_1064 (0,999), tagliato in z ma in modo trascurabile; ISPY1_1103 (0,9996), che non tocca i bordi, con una differenza di circa 35 voxel di origine non chiara. **Restano nella coorte**; il volume si prende sempre da `tum_vol`; nelle Fasi 4-5 le analisi principali si ripetono escludendoli (analisi di sensibilità, soglia da decidere).
@@ -70,7 +82,7 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
   - **trattamento come nodo non osservato** (sottotipo → trattamento → pCR; coorte → trattamento). Non è un genitore degli habitat, che sono misurati prima della terapia. Limite: l'effetto "diretto" del sottotipo comprende anche quello della terapia.
   - *Punti aperti per la Fase 6*: (a) il volume dipende dal sottotipo e influenza sia gli habitat sia la pCR, quindi la mediazione va impostata con mediatori multipli in sequenza (effetto via volume ed effetto via habitat oltre il volume) e non con un singolo mediatore; (b) come codificare l'esposizione, visto che il sottotipo ha 3 categorie (confronti a coppie o HR e HER2 separati).
 
-**Checkpoint con il relatore.** Mostragli la coorte e una prima bozza del DAG, e fagli approvare la riformulazione della parte causale (§3.6 della proposta).
+**Checkpoint con il relatore.** Mostragli la coorte e una prima bozza del DAG, e fagli approvare la riformulazione della parte causale (§3.6 della proposta). *Non fatto, per scelta dell'utente (13/11/2026).*
 
 ---
 
@@ -166,6 +178,16 @@ Decidilo subito, perché se la scelta arriva tardi blocca tutto il resto.
   - k = 3 ritrova le tre forme di curva di Kuhl;
   - la sua stabilità (0,76) è appena sotto la soglia e molto sopra k ≥ 4;
   - con k = 2 ogni tumore sarebbe descritto da un solo numero, e l'entropia della Fase 4 ne sarebbe una funzione.
+- **Alternative considerate e scartate** (per la discussione):
+  - *PE + SER*, la coppia classica di Hylton, e *tutte e tre le mappe*: vedi sopra. Le tre insieme sarebbero ridondanti, perché la forma della curva conterebbe due volte rispetto a PE;
+  - *solo taglio e z-score, senza logaritmo*: PE resta asimmetrico e la sua parte alta pesa di più nelle distanze;
+  - *trasformazione sui ranghi*: rende uniformi le distribuzioni, i cluster tendono a diventare fasce di quantili e le distanze perdono significato;
+  - *standardizzazione robusta (mediana/IQR) senza taglio*: gli estremi restano estremi e con K-means tirano i centroidi;
+  - *campione casuale globale*: le pazienti conterebbero in proporzione al volume del tumore. *Tutti i voxel pesati 1/n per paziente*: equivalente al campione bilanciato, ma molto più lento;
+  - *GMM come principale*: con circa 180 mila voxel che non seguono davvero una miscela di gaussiane, il BIC tende a premiare sempre più componenti (qui è piatto tra 4 e 6), quindi come criterio per k è poco affidabile. K-means assegna ogni voxel a un solo habitat ed è il metodo più usato negli studi sugli habitat;
+  - *gomito*: non c'è un punto netto. *Silhouette massima*: premia k = 2;
+  - *k = 4*: è il minimo del BIC e corrisponde ai quadranti perfusione alta/bassa × wash-out/crescita, ma ha la stabilità più bassa (ARI 0,45), perché esistono due divisioni quasi equivalenti tra cui il modello oscilla;
+  - *nomi scelti a mano*: meno riproducibili se il clustering viene rifatto, per esempio con I-SPY2.
 - **Ordine e nomi degli habitat**: numerati per PE crescente del centroide (a parità, per variazione tardiva). Il nome è dato da una regola:
   - perfusione "alta" o "bassa" rispetto al PE mediano del campione del training (1,52);
   - forma della curva dalla variazione tardiva mediana dell'habitat, con tolleranza ±5% (Kuhl).
