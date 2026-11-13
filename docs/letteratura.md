@@ -1,7 +1,7 @@
 # Letteratura – verifica di originalità e lavori di confronto
 
 Ricerca fatta il 12/11/2026 (3 ricerche web mirate, NON una revisione sistematica).
-Da completare in Fase 7 con PubMed / Google Scholar: "mediation" + "radiomics"/"habitat" + "breast" + "pCR".
+Da completare con PubMed / Google Scholar: "mediation" + "radiomics"/"habitat" + "breast" + "pCR".
 
 ## Esito in breve
 
@@ -33,9 +33,9 @@ Da completare in Fase 7 con PubMed / Google Scholar: "mediation" + "radiomics"/"
 - Radiomica per classificare il sottotipo (gli habitat dipendono dal sottotipo: freccia sottotipo → habitat nel DAG). https://pmc.ncbi.nlm.nih.gov/articles/PMC12634091/
 
 ## Per il DAG
-- Un preprint recente tratta il sottotipo come **confondente** tra radiomica e pCR (influenza sia l'aspetto in risonanza sia la risposta). È coerente con il nostro DAG: il sottotipo sta a monte, gli habitat in mezzo (mediatore). Riferimento esatto da recuperare in Fase 7.
+- Un preprint recente tratta il sottotipo come **confondente** tra radiomica e pCR (influenza sia l'aspetto in risonanza sia la risposta). È coerente con il nostro DAG: il sottotipo sta a monte, gli habitat in mezzo (mediatore). Riferimento esatto da recuperare.
 
-## Riferimenti da recuperare per la Fase 7
+## Riferimenti da recuperare
 
 Ogni scelta di metodo presa finora che ha bisogno di una fonte nella tesi. I riferimenti proposti vengono **dalla memoria e non sono ancora verificati**: prima di citarli, controlla autori, anno e rivista su PubMed o Google Scholar.
 
